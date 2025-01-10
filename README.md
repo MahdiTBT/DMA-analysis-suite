@@ -133,7 +133,7 @@ temp_dep.plot_fit()
 
 ### Quick Check (Storage and Loss)
 
-![Storage & Loss Check](path/to/quick-check-plot.png)
+![Storage & Loss Check](quick-check-plot.png)
 
 ### Master Curve Before and After Shifting
 
