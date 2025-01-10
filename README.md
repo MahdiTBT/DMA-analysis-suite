@@ -163,8 +163,9 @@ $$
 **Loss Modulus**:
 
 $$
-E_{\ell}(\omega) \;=\; E_0 \,\sum_{i=1}^{N} \frac{\,e_i^P\,\tau_i\,\omega\,}{\,1 + \tau_i^2\,\omega^2\,},
+E_{\ell}(\omega) = E_0 \sum_{i=1}^N \frac{e_i \tau_i \omega}{1 + \tau_i^2 \omega^2}
 $$
+
 
 ---
 
