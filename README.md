@@ -137,15 +137,15 @@ temp_dep.plot_fit()
 
 ### Master Curve Before and After Shifting
 
-![Master Curve Shift](path/to/master-curve-shift.png)
+![Master Curve Shift](master-curve-shift.png)
 
 ### ln(a_T) vs. 1/T Fit
 
-![ln(a_T) Fit](path/to/ln-at-fit.png)
+![ln(a_T) Fit](ln-at-fit.png)
 
 ### Fitted Prony Series
 
-![Prony Fit](path/to/prony-fit.png)
+![Prony Fit](prony-fit.png)
 
 ---
 
