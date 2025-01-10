@@ -220,13 +220,13 @@ class MasterCurve:
             axs[0].set_title("Quick Check: Storage (Log-Log)")
             axs[0].set_xlabel("log10(f)")
             axs[0].set_ylabel("log10(Storage)")
-            axs[0].legend()
+            axs[0].legend(ncol=4, loc='upper center', bbox_to_anchor=(0.5, -0.2))
 
             # Right subplot: Loss
             axs[1].set_title("Quick Check: Loss (Log-Log)")
             axs[1].set_xlabel("log10(f)")
             axs[1].set_ylabel("log10(Loss)")
-            axs[1].legend()
+            axs[1].legend(ncol=4, loc='upper center', bbox_to_anchor=(0.5, -0.2))
 
             plt.tight_layout()
             plt.show()
