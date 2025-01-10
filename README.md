@@ -51,8 +51,8 @@ Dependencies include:
 ## Directory Structure
 
 ```
-auto_mastercurve/
-├── auto_mastercurve/
+DMA-analysis-suite/
+├── source_code/
 │   ├── __init__.py
 │   ├── core.py
 │   ├── Data/            # Raw DMA data files (T*.txt)
