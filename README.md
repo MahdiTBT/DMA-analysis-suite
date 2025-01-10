@@ -155,10 +155,10 @@ The project uses frequency-domain representations of viscoelastic behavior:
 
 **Storage Modulus**:
 
-\(
+$$
 E_s(\omega) = E_0 \left[1 - \sum_{i=1}^N e_i 
 ight] + E_0 \sum_{i=1}^N rac{e_i 	au_i^2 \omega^2}{1 + 	au_i^2 \omega^2}
-\)
+$$
 
 **Loss Modulus**:
 
