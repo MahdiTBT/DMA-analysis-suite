@@ -1,0 +1,479 @@
+import warnings
+import logging
+from pathlib import Path
+
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import re
+import scipy.optimize as opt
+
+# Set logging level (optional, for debugging)
+logging.basicConfig(level=logging.INFO)
+
+# Optionally suppress warnings from some external libraries
+warnings.filterwarnings("ignore")
+
+# Set plot fonts globally
+plt.rc('font', family='serif', serif='Times New Roman')
+
+
+class MasterCurve:
+    """
+    The MasterCurve class reads, processes, and aligns DMA test data from text files
+    named like 'T0.txt', 'T-10.txt', etc., culminating in a 'master curve'.
+
+    Key Improvements:
+    1) Columns & reading logic are configurable (via __init__ parameters).
+    2) Customizable data cleaning (via `clean_dataframe` method).
+    3) Objective function is abstracted (pass custom or use default).
+    4) Plotting is separated from data processing (optional parameter `do_plot`).
+       - The first plot is a subfigure with two panels:
+         one for Storage, one for Loss (both in log10).
+       - We removed the second "Master Curve (Final)" plot to meet the latest requirement.
+    """
+
+    def __init__(
+        self,
+        columns=None,
+        skiprows: int = 2,
+        skipfooter: int = 1,
+        delimiter: str = r'\s+',
+        engine: str = 'python',
+        encoding: str = 'iso-8859-1',
+        objective_func=None,
+        do_plot: bool = True
+    ):
+        """
+        Initialize with user-configurable reading & cleaning parameters, plus an objective function.
+
+        Parameters
+        ----------
+        columns : list of str or None
+            Column names for the input .txt files. If None, a default list is used.
+        skiprows : int
+            Number of rows to skip at the start of each file.
+        skipfooter : int
+            Number of rows to skip at the end of each file.
+        delimiter : str
+            Delimiter for file reading (regex supported).
+        engine : str
+            The parsing engine for pandas (often 'python' or 'c').
+        encoding : str
+            File encoding.
+        objective_func : callable or None
+            Custom objective function for shifting. Must match signature:
+                objective_func(shift_val, Data_ref, Data_shifting) -> float
+            If None, uses self.default_objective_function.
+        do_plot : bool
+            Whether to produce plots while reading and building the master curve.
+        """
+        self.data_dict = {}
+
+        # Default columns if none provided
+        self.columns = columns or [
+            'Index', 'Ts', 't', 'f', 'F', 'x', 'Phase', 'F0', 'x0',
+            'Tr', 'Storage', 'Loss', 'E^*', 'tan_delta', 'D_p', 'D_Dp',
+            'D^*', 'Eta_p', 'Eta_Dp', 'Eta^*'
+        ]
+        self.skiprows = skiprows
+        self.skipfooter = skipfooter
+        self.delimiter = delimiter
+        self.engine = engine
+        self.encoding = encoding
+
+        # Objective function: if none given, use the default
+        self.objective_func = objective_func or self.default_objective_function
+
+        self.do_plot = do_plot
+
+    def read_data(self, data_dir: Path) -> pd.DataFrame:
+        """
+        Reads text files named like 'T0.txt', 'T-10.txt', etc. from the given directory,
+        applies cleaning, stores them in self.data_dict, and optionally plots a quick check.
+
+        Parameters
+        ----------
+        data_dir : Path
+            A path object pointing to the directory with .txt data files.
+
+        Returns
+        -------
+        pd.DataFrame
+            A DataFrame ('File_names') containing metadata: (file name, temperature),
+            plus an assigned "Jupyter Name" used as a key in self.data_dict.
+        """
+        # Collect all .txt files in the directory matching "T*.txt"
+        file_list = sorted(data_dir.glob("T*.txt"))
+        if not file_list:
+            logging.warning(f"No files found matching 'T*.txt' in {data_dir}")
+            return pd.DataFrame()
+
+        metadata_records = []
+        for file_path in file_list:
+            file_name = file_path.name
+            # Extract temperature from file name (like T-10.txt => -10)
+            match = re.findall(r"T(-?\d+)", file_name)
+            if not match:
+                logging.warning(f"Could not parse temperature in file name: {file_name}")
+                continue
+
+            temp = int(match[0])  # convert string to int
+            metadata_records.append((file_name, temp))
+
+        # Build the File_names DataFrame
+        File_names = pd.DataFrame(metadata_records, columns=["File Name", "Temperature"])
+        File_names.sort_values(by="Temperature", inplace=True, ignore_index=True)
+
+        # Generate a "Jupyter Name" and read each file
+        for idx, row in File_names.iterrows():
+            temp = row["Temperature"]
+            jupyter_name = f"T{temp}C"
+            File_names.loc[idx, "Jupyter Name"] = jupyter_name
+
+            try:
+                df = pd.read_csv(
+                    data_dir / row["File Name"],
+                    delimiter=self.delimiter,
+                    skiprows=self.skiprows,
+                    skipfooter=self.skipfooter,
+                    encoding=self.encoding,
+                    engine=self.engine,
+                    names=self.columns
+                )
+            except Exception as e:
+                logging.error(f"Error reading {row['File Name']}: {e}")
+                continue
+
+            # Convert Ts, Tr from Celsius to Kelvin
+            df['Ts'] = df['Ts'] + 273.15
+            df['Tr'] = df['Tr'] + 273.15
+
+            # Clean the data
+            df = self.clean_dataframe(df)
+            self.data_dict[jupyter_name] = df
+
+        # --- Make one figure with two subplots: Storage on the left, Loss on the right ---
+        if self.do_plot and not File_names.empty:
+            fig, axs = plt.subplots(1, 2, figsize=(12, 6))
+
+            for idx, row in File_names.iterrows():
+                jupyter_name = row["Jupyter Name"]
+                df = self.data_dict[jupyter_name]
+
+                f_log = np.log10(df['f'])
+                storage_log = np.log10(df['Storage'])
+                loss_log = np.log10(df['Loss'])
+
+                axs[0].plot(f_log, storage_log, label=jupyter_name)
+                axs[1].plot(f_log, loss_log, label=jupyter_name)
+
+            # Left subplot: Storage
+            axs[0].set_title("Quick Check: Storage (Log-Log)")
+            axs[0].set_xlabel("log10(f)")
+            axs[0].set_ylabel("log10(Storage)")
+            axs[0].legend()
+
+            # Right subplot: Loss
+            axs[1].set_title("Quick Check: Loss (Log-Log)")
+            axs[1].set_xlabel("log10(f)")
+            axs[1].set_ylabel("log10(Loss)")
+            axs[1].legend()
+
+            plt.tight_layout()
+            plt.show()
+
+        return File_names
+
+    def clean_dataframe(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Cleans the DataFrame by removing rows with negative Storage or Loss.
+        Override/extend this method for different cleaning rules.
+
+        Parameters
+        ----------
+        df : pd.DataFrame
+            Raw data after reading.
+
+        Returns
+        -------
+        pd.DataFrame
+            Cleaned data.
+        """
+        before_len = len(df)
+        df = df[df['Storage'] > 0]
+        df = df[df['Loss'] > 0]
+        df.reset_index(drop=True, inplace=True)
+
+        if len(df) < before_len:
+            logging.info("Removed negative Storage/Loss rows.")
+
+        return df
+
+    def ref_temp(self, File_names: pd.DataFrame, T_ref: float, shift: float):
+        """
+        Finds and transforms the reference data at T_ref, plus data at the next
+        closest temperature, dropping T_ref from File_names.
+        """
+        Data_ref, Data_shifting = None, None
+        T_next, next_index = None, None
+
+        for i, row in File_names.iterrows():
+            if T_ref == row['Temperature']:
+                jupyter_name = row['Jupyter Name']
+                # Make a copy
+                df_ref = self.data_dict[jupyter_name][['Ts', 'f', 'Storage', 'Loss', 'Tr']].copy()
+
+                # Convert to log10 space, apply shift
+                df_ref['f'] = np.log10(df_ref['f']) + shift
+                df_ref['Storage'] = np.log10(df_ref['Storage'])
+                df_ref['Loss'] = np.log10(df_ref['Loss'])
+                df_ref['Tr'] = df_ref['Tr'] - 273.15
+
+                Data_ref = df_ref
+
+                File_names.drop(i, inplace=True)
+                File_names.reset_index(drop=True, inplace=True)
+
+                if not File_names.empty:
+                    next_index = File_names['Temperature'].sub(T_ref).abs().idxmin()
+                    T_next = File_names.loc[next_index, 'Temperature']
+                    jupyter_name_shift = File_names.loc[next_index, 'Jupyter Name']
+
+                    df_shift = self.data_dict[jupyter_name_shift][['Ts', 'f', 'Storage', 'Loss', 'Tr']].copy()
+                    df_shift['f'] = np.log10(df_shift['f']) + shift
+                    df_shift['Storage'] = np.log10(df_shift['Storage'])
+                    df_shift['Loss'] = np.log10(df_shift['Loss'])
+                    df_shift['Tr'] = df_shift['Tr'] - 273.15
+                    Data_shifting = df_shift
+                break
+        else:
+            logging.warning(f"Temperature {T_ref} not found in File_names.")
+
+        return Data_ref, Data_shifting, File_names, T_next, next_index
+
+    def default_objective_function(
+        self,
+        shift_val: float,
+        Data_ref: pd.DataFrame,
+        Data_shifting: pd.DataFrame
+    ) -> float:
+        """
+        Default function measuring sum of squared relative differences
+        in log10(Storage) between reference & shifted curves.
+        """
+        baseline_x = Data_ref['f']
+        baseline_y = Data_ref['Storage']
+
+        curve_x = Data_shifting['f']
+        curve_y = Data_shifting['Storage']
+
+        # Shift curve_x by shift_val and interpolate
+        shifted_curve_y = np.interp(baseline_x, curve_x + shift_val, curve_y)
+        return np.sum(((shifted_curve_y - baseline_y) ** 2) / (baseline_y ** 2))
+
+    def calculate_shift(
+        self,
+        Data_ref: pd.DataFrame,
+        Data_shifting: pd.DataFrame
+    ) -> float:
+        """
+        Minimizes self.objective_func to find the best shift aligning Data_shifting to Data_ref.
+        """
+        result = opt.minimize(
+            self.objective_func,  # can be default or user-supplied
+            x0=0.0,
+            args=(Data_ref, Data_shifting)
+        )
+        return result.x[0]
+
+    def apply_shift(
+        self,
+        Data_shifting: pd.DataFrame,
+        Data_ref: pd.DataFrame,
+        next_index: int,
+        File_names: pd.DataFrame
+    ) -> (pd.DataFrame, pd.DataFrame, float):
+        """
+        Calculates and applies the optimal shift to Data_shifting, then
+        concatenates Data_shifting with Data_ref.
+        """
+        shift_val = self.calculate_shift(Data_ref, Data_shifting)
+        Data_shifting['f'] += shift_val
+        Data_shifting['Shift_value'] = shift_val
+
+        data_final = pd.concat([Data_ref, Data_shifting], ignore_index=True)
+        return Data_shifting, data_final, shift_val
+
+    def build_master_curve(self, path: Path) -> (pd.DataFrame, pd.DataFrame):
+        """
+        Main pipeline:
+          1) Reads data from T*.txt files
+          2) Chooses T_ref as the minimum temperature
+          3) Iteratively aligns each next-closest temperature
+          4) Returns the final "master curve" plus File_names.
+          
+        Note: The second "Master Curve (Final)" plot has been removed per request.
+        """
+        File_names = self.read_data(path)
+        if File_names.empty:
+            logging.warning("No data loaded. Returning empty DataFrame.")
+            return pd.DataFrame(), File_names
+
+        # Instead of a hard-coded T_ref=0, pick the min temperature
+        T_ref = File_names['Temperature'].min()
+        total_shift = 0.0
+        Final = pd.DataFrame()
+
+        fnames_copy = File_names.copy()
+
+        for _ in range(len(fnames_copy)):
+            Data_ref, Data_shifting, fnames_copy, T_next, next_idx = self.ref_temp(
+                fnames_copy, T_ref, total_shift
+            )
+            if Data_ref is None:
+                break
+
+            if Final.empty:
+                Final = Data_ref.copy()
+
+            Data_shifting, data_final, shift_val = self.apply_shift(
+                Data_shifting, Data_ref, next_idx, fnames_copy
+            )
+            Final = pd.concat([Final, Data_shifting], ignore_index=True)
+
+            T_ref = T_next if T_next is not None else T_ref
+            total_shift += shift_val
+
+            if len(fnames_copy) == 1:
+                break
+
+        Final.sort_values(by='f', inplace=True)
+        Final['Shift_value'] = Final['Shift_value'].fillna(0)
+
+        return Final, File_names
+
+    def adjust_shift(
+        self,
+        T_ref_new: float,
+        Temp_Shift: pd.DataFrame,
+        Final: pd.DataFrame
+    ) -> (float, float, float, pd.DataFrame, pd.DataFrame, pd.DataFrame):
+        
+        """
+        Adjusts the entire master curve to a new reference temperature T_ref_new,
+        then plots log(Storage), log(Loss), and Arrhenius-like shift factor vs. 1/T.
+        """
+        if T_ref_new in Temp_Shift['Tr'].values:
+            shift_Tref = Temp_Shift.loc[Temp_Shift['Tr'] == T_ref_new, 'Shift_value'].values[0]
+        else:
+            shift_Tref = np.interp(T_ref_new, Temp_Shift['Tr'], Temp_Shift['Shift_value'])
+
+        logging.info(f"Shift for T_ref={T_ref_new} is {shift_Tref}")
+
+        fig, axs = plt.subplots(1, 2, figsize=(12, 6))
+
+        # Plot Storage Modulus (before and after shift)
+        axs[0].plot(Final['f'], Final['Storage'], label='Before Shift')
+        axs[0].plot(Final['f'] - shift_Tref, Final['Storage'], label=f"Shifted to {T_ref_new}C")
+        axs[0].set_title("Master Curve: Storage Modulus")
+        axs[0].set_xlabel("Frequency (f)")
+        axs[0].set_ylabel("Storage Modulus")
+        axs[0].legend()
+
+        # Plot Loss Modulus (before and after shift)
+        axs[1].plot(Final['f'], Final['Loss'], label='Loss (Before Shift)')
+        axs[1].plot(Final['f'] - shift_Tref, Final['Loss'], label='Loss (After Shift)')
+        axs[1].set_title("Loss Modulus After Shift")
+        axs[1].set_xlabel("Frequency (f)")
+        axs[1].set_ylabel("Loss Modulus")
+        axs[1].legend()
+
+        plt.tight_layout()
+        plt.show()
+
+        # Arrhenius-type plot: ln(a_T) vs. 1/(T+273.15)
+        plt.figure()
+        x_vals = 1 / (Temp_Shift['Tr'] + 273.15)
+        y_vals = np.log(10 ** Temp_Shift['Shift_value'])
+        plt.scatter(x_vals, y_vals, label='Shift Values', marker='o')
+
+        slope, intercept = np.polyfit(x_vals, y_vals, 1)
+        plt.plot(x_vals, slope * x_vals + intercept, label='Linear Fit')
+        plt.title("ln(a_T) vs. 1/T")
+        plt.legend()
+        plt.show()
+
+        R = 8.314
+        Ea = slope * R
+        logging.info(f"Activation energy (kJ/mol): {Ea / 1000:.2f}")
+
+        Final_after_shift = Final.copy()
+        Final_after_shift['f'] -= shift_Tref
+        Final_after_shift['Shift_value'] -= shift_Tref
+
+        return slope, intercept, Ea, Final, Temp_Shift, Final_after_shift
+
+
+# ------------------------------------------------------------------------------
+# Example usage in a script or notebook (second "Master Curve (Final)" plot removed)
+# ------------------------------------------------------------------------------
+if __name__ == "__main__":
+    data_directory = Path(r"C:\Users\matay\Desktop\Python_package\auto_mastercurve\auto_mastercurve\Data\Data2")
+
+    mc = MasterCurve(
+        columns=None,              # or a custom list of columns
+        skiprows=2,
+        skipfooter=1,
+        delimiter=r'\s+',
+        engine='python',
+        encoding='iso-8859-1',
+        objective_func=None,       # pass custom if desired
+        do_plot=True               # set False to skip all plotting
+    )
+
+    # 1) Build the master curve
+    final_df, file_names_df = mc.build_master_curve(data_directory)
+
+    # 2) Build temp_shift DataFrame as an example
+    temp_shift_df = pd.DataFrame(columns=['Tr', 'Shift_value'])
+    for i, row in file_names_df.iterrows():
+        T = row['Temperature']
+        jupyter_name = row['Jupyter Name']
+
+        mask = final_df['Tr'] == T
+        if not mask.any():
+            continue
+
+        # Frequencies after shifting
+        f_final = final_df.loc[mask, 'f'].reset_index(drop=True)
+
+        # Retrieve the original (unshifted) data
+        original_df = mc.data_dict[jupyter_name][['f', 'Tr']].copy()
+        diff_val = f_final[0] - np.log10(original_df['f'].iloc[0])
+
+        temp_shift_df = pd.concat([
+            temp_shift_df,
+            pd.DataFrame({'Tr': [T], 'Shift_value': [diff_val]})
+        ], ignore_index=True)
+
+        final_df.loc[mask, 'Shift_value'] = diff_val
+
+    # Make columns numeric
+    temp_shift_df['Tr'] = temp_shift_df['Tr'].astype(float)
+    temp_shift_df['Shift_value'] = temp_shift_df['Shift_value'].astype(float)
+
+    # 3) Adjust shift to a new reference temperature (e.g., 20°C)
+    slope, intercept, Ea, final_df, temp_shift_df, final_after_shift = mc.adjust_shift(
+        T_ref_new=60.0,
+        Temp_Shift=temp_shift_df,
+        Final=final_df
+    )
+
+    # 4) Save the final DataFrame with shifted values as a CSV file
+    out_csv = "final_witout_shifting.csv"
+    final_df.to_csv(out_csv, index=False)
+    print(f"Saved final_df with shifts to: {out_csv}")
+    Out_csv = "final_after_shift.csv"
+    final_after_shift.to_csv(Out_csv, index=False)
+    print(f"Saved final_df with shifts to: {Out_csv}")
