@@ -243,7 +243,7 @@ class MasterCurve:
             handles, labels = axs[0].get_legend_handles_labels()
             fig.legend(handles, labels, loc='lower center', ncol=6, bbox_to_anchor=(0.5, -0.1))
 
-            plt.tight_layout(rect=[0, 0.05, 1, 0.95])  # Adjust layout for the legend
+            plt.tight_layout(rect=[0, 0.07, 1, 0.95])  # Adjust layout for the legend
             plt.show()
 
         return File_names
