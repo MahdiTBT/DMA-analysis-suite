@@ -209,7 +209,7 @@ class MasterCurve:
         palette = sns.color_palette("husl", num_curves)  # HSV colormap for high contrast
 
         if self.do_plot and not File_names.empty:
-            fig, axs = plt.subplots(1, 2, figsize=(14, 8))
+            fig, axs = plt.subplots(1, 2, figsize=(12, 6))
 
             for idx, (row, color) in enumerate(zip(File_names.iterrows(), palette)):
                 jupyter_name = row[1]["Jupyter Name"]
@@ -530,7 +530,7 @@ class MasterCurve:
 
         logging.info(f"Shift for T_ref={T_ref_new} is {shift_Tref}")
 
-        fig, axs = plt.subplots(1, 2, figsize=(14, 8))
+        fig, axs = plt.subplots(1, 2, figsize=(12, 6))
 
         # Plot Storage: before & after shift
         #axs[0].plot(10**Final['f'], 10**Final['Storage'], label='Before Shift')
@@ -793,7 +793,7 @@ class MastercurveFitter:
         r2_loss    = r2_score(df_filtered['Loss'], fitted_loss)
 
         # Plot
-        plt.figure(figsize=(14, 8))
+        plt.figure(figsize=(12, 6))
 
         # 1) Storage
         plt.subplot(1, 2, 1)
