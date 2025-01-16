@@ -534,7 +534,7 @@ class MasterCurve:
 
         # Plot Storage: before & after shift
         #axs[0].plot(10**Final['f'], 10**Final['Storage'], label='Before Shift')
-        axs[0].plot(10**(Final['f'] - shift_Tref), 10**Final['Storage'], label=f"Master Curve at {T_ref_new}C")
+        axs[0].plot(10**(Final['f'] - shift_Tref), 10**Final['Storage'], label=f"Master Curve at {T_ref_new}°C")
         #axs[0].set_title("Master Curve: Storage Modulus")
         axs[0].set_xlabel(r"$f\ \mathrm{[Hz]}$")
         axs[0].set_ylabel(r"Storage Modulus $\mathrm{[GPa]}$")
@@ -545,7 +545,7 @@ class MasterCurve:
 
         # Plot Loss: before & after shift
         #axs[1].plot(10**Final['f'], 10**Final['Loss'], label='Before Shift')
-        axs[1].plot(10**(Final['f'] - shift_Tref), 10**Final['Loss'], label=f"Master Curve at {T_ref_new}C")
+        axs[1].plot(10**(Final['f'] - shift_Tref), 10**Final['Loss'], label=f"Master Curve at {T_ref_new}°C")
         # also plot the initial data in first plot
 
         #axs[1].set_title("Loss Modulus After Shift")
