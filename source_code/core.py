@@ -28,6 +28,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib.cm as cm
+import seaborn as sns
 import scipy.optimize as opt
 from scipy.optimize import minimize
 from sklearn.metrics import r2_score
@@ -202,33 +204,46 @@ class MasterCurve:
             self.data_dict[jupyter_name] = df
 
         # If plotting is enabled, produce a quick check chart
-        if self.do_plot and not File_names.empty:
-            fig, axs = plt.subplots(1, 2, figsize=(12, 6))
+        # Generate a qualitative color palette for 22 curves
+        num_curves = len(File_names)
+        palette = sns.color_palette("husl", num_curves)  # HSV colormap for high contrast
 
-            for idx, row in File_names.iterrows():
-                jupyter_name = row["Jupyter Name"]
+        if self.do_plot and not File_names.empty:
+            fig, axs = plt.subplots(1, 2, figsize=(14, 8))
+
+            for idx, (row, color) in enumerate(zip(File_names.iterrows(), palette)):
+                jupyter_name = row[1]["Jupyter Name"]
+                temp = row[1]["Temperature"]
                 df = self.data_dict[jupyter_name]
 
                 f_log = np.log10(df['f'])
                 storage_log = np.log10(df['Storage'])
                 loss_log = np.log10(df['Loss'])
 
-                axs[0].plot(f_log, storage_log, label=jupyter_name)
-                axs[1].plot(f_log, loss_log, label=jupyter_name)
+                axs[0].plot(10**f_log, 10**storage_log, label=f"{temp}°C", color=color, linewidth=1.5)
+                axs[1].plot(10**f_log, 10**loss_log, label=f"{temp}°C", color=color, linewidth=1.5)
 
             # Left subplot: Storage
-            axs[0].set_title("Quick Check: Storage (Log-Log)")
-            axs[0].set_xlabel("log10(f)")
-            axs[0].set_ylabel("log10(Storage)")
-            axs[0].legend(ncol=4, loc='upper center', bbox_to_anchor=(0.5, -0.2))
+            #axs[0].set_title("Quick Check: Storage (Log-Log)")
+            axs[0].set_xlabel(r"$f\ \mathrm{[Hz]}$")
+            axs[0].set_ylabel(r"Storage Modulus $\mathrm{[GPa]}$")
+            axs[0].set_xscale('log')  # Logarithmic scale on x-axis
+            axs[0].set_yscale('log')  # Logarithmic scale on y-axis
+            axs[0].grid(True, which='both', linestyle='--', linewidth=0.5, alpha=0.7) 
 
             # Right subplot: Loss
-            axs[1].set_title("Quick Check: Loss (Log-Log)")
-            axs[1].set_xlabel("log10(f)")
-            axs[1].set_ylabel("log10(Loss)")
-            axs[1].legend(ncol=4, loc='upper center', bbox_to_anchor=(0.5, -0.2))
+            #axs[1].set_title("Quick Check: Loss (Log-Log)")
+            axs[1].set_xlabel(r"$f\ \mathrm{[Hz]}$")
+            axs[1].set_ylabel(r"Loss Modulus $\mathrm{[GPa]}$")
+            axs[1].set_xscale('log')  # Logarithmic scale on x-axis
+            axs[1].set_yscale('log')  # Logarithmic scale on y-axis
+            axs[1].grid(True, which='both', linestyle='--', linewidth=0.5, alpha=0.7)
 
-            plt.tight_layout()
+            # Single legend for all curves
+            handles, labels = axs[0].get_legend_handles_labels()
+            fig.legend(handles, labels, loc='lower center', ncol=6, bbox_to_anchor=(0.5, -0.1))
+
+            plt.tight_layout(rect=[0, 0.05, 1, 0.95])  # Adjust layout for the legend
             plt.show()
 
         return File_names
@@ -515,22 +530,30 @@ class MasterCurve:
 
         logging.info(f"Shift for T_ref={T_ref_new} is {shift_Tref}")
 
-        fig, axs = plt.subplots(1, 2, figsize=(12, 6))
+        fig, axs = plt.subplots(1, 2, figsize=(14, 8))
 
         # Plot Storage: before & after shift
-        axs[0].plot(Final['f'], Final['Storage'], label='Before Shift')
-        axs[0].plot(Final['f'] - shift_Tref, Final['Storage'], label=f"Shifted to {T_ref_new}C")
-        axs[0].set_title("Master Curve: Storage Modulus")
-        axs[0].set_xlabel("Frequency (f)")
-        axs[0].set_ylabel("Storage Modulus")
+        #axs[0].plot(10**Final['f'], 10**Final['Storage'], label='Before Shift')
+        axs[0].plot(10**(Final['f'] - shift_Tref), 10**Final['Storage'], label=f"Master Curve at {T_ref_new}C")
+        #axs[0].set_title("Master Curve: Storage Modulus")
+        axs[0].set_xlabel(r"$f\ \mathrm{[Hz]}$")
+        axs[0].set_ylabel(r"Storage Modulus $\mathrm{[GPa]}$")
+        axs[0].set_xscale('log')  # Logarithmic scale on x-axis
+        axs[0].set_yscale('log')  # Logarithmic scale on y-axis
+        axs[0].grid(True, which='both', linestyle='--', linewidth=0.5, alpha=0.7)
         axs[0].legend()
 
         # Plot Loss: before & after shift
-        axs[1].plot(Final['f'], Final['Loss'], label='Before Shift')
-        axs[1].plot(Final['f'] - shift_Tref, Final['Loss'], label=f"Shifted to {T_ref_new}C")
-        axs[1].set_title("Loss Modulus After Shift")
-        axs[1].set_xlabel("Frequency (f)")
-        axs[1].set_ylabel("Loss Modulus")
+        #axs[1].plot(10**Final['f'], 10**Final['Loss'], label='Before Shift')
+        axs[1].plot(10**(Final['f'] - shift_Tref), 10**Final['Loss'], label=f"Master Curve at {T_ref_new}C")
+        # also plot the initial data in first plot
+
+        #axs[1].set_title("Loss Modulus After Shift")
+        axs[1].set_xlabel(r"$f\ \mathrm{[Hz]}$")
+        axs[1].set_ylabel(r"Loss Modulus $\mathrm{[GPa]}$")
+        axs[1].set_xscale('log')  # Logarithmic scale on x-axis
+        axs[1].set_yscale('log')  # Logarithmic scale on y-axis
+        axs[1].grid(True, which='both', linestyle='--', linewidth=0.5, alpha=0.7)
         axs[1].legend()
 
         plt.tight_layout()
@@ -538,6 +561,7 @@ class MasterCurve:
 
         # Arrhenius-like plot: ln(a_T) vs. 1/(T+273.15)
         plt.figure()
+        
         x_vals = 1 / (Temp_Shift['Tr'] + 273.15)  # 1/T in K
         # Convert from log10 shift_value to ln(a_T)
         y_vals = np.log(10 ** Temp_Shift['Shift_value'])
