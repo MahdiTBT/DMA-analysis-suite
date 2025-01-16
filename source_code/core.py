@@ -835,7 +835,8 @@ class MastercurveFitter:
             'e':   self.optimized_e
         })
         df_prony['E_0'] = self.optimized_E_0
-        return df_prony
+        E_0_final= self.optimized_E_0
+        return df_prony , E_0_final
 
 # ------------------------------------------------------------------------------ 
 # 3) TemperatureDependency class
