@@ -133,23 +133,19 @@ temp_dep.plot_fit()
 
 ### Quick Check (Storage and Loss)
 
-![Storage & Loss Check]
-(quick-check-plot.png)
+![Storage & Loss Check](quick-check-plot.png)
 
 ### Master Curve Before and After Shifting
 
-![Master Curve Shift]
-(master-curve-shift.png)
+![Master Curve Shift](master-curve-shift.png)
 
 ### ln(a_T) vs. 1/T Fit
 
-![ln(a_T) Fit]
-(ln-at-fit.png)
+![ln(a_T) Fit](ln-at-fit.png)
 
 ### Fitted Prony Series
 
-![Prony Fit]
-(prony-fit.png)
+![Prony Fit](prony-fit.png)
 
 ---
 
