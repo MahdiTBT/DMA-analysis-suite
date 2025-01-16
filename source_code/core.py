@@ -803,7 +803,7 @@ class MastercurveFitter:
         plt.yscale('log')
         plt.grid(True, which='both', linestyle='--', linewidth=0.5, alpha=0.7)
         plt.xlabel(r"$f\ \mathrm{[rad/s]}$")
-        plt.ylabel(r"Storage Modulus $\mathrm{[Pa]}$")
+        plt.ylabel(r"Storage Modulus $\mathrm{[GPa]}$")
 #        plt.title("Storage Modulus vs Frequency")
         plt.legend()
 
@@ -815,7 +815,7 @@ class MastercurveFitter:
         plt.yscale('log')
         plt.grid(True, which='both', linestyle='--', linewidth=0.5, alpha=0.7)
         plt.xlabel(r"$f\ \mathrm{[rad/s]}$")
-        plt.ylabel(r"Loss Modulus $\mathrm{[Pa]}$")
+        plt.ylabel(r"Loss Modulus $\mathrm{[GPa]}$")
 #        plt.title("Loss Modulus vs Frequency")
         plt.legend()
 
