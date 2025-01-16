@@ -793,28 +793,30 @@ class MastercurveFitter:
         r2_loss    = r2_score(df_filtered['Loss'], fitted_loss)
 
         # Plot
-        plt.figure(figsize=(12, 6))
+        plt.figure(figsize=(14, 8))
 
         # 1) Storage
         plt.subplot(1, 2, 1)
-        plt.plot(df_filtered['f'], df_filtered['Storage'], 'b.-', label="Experimental E'")
-        plt.plot(df_filtered['f'], fitted_storage, 'r--', label=f"Fitted E' (R²={r2_storage:.3f})")
+        plt.plot(df_filtered['f'], df_filtered['Storage'], 'b.-', label="Generated Master Curve")
+        plt.plot(df_filtered['f'], fitted_storage, 'r--', label=f"Fitted Prony Series (R²={r2_storage:.3f})")
         plt.xscale('log')
         plt.yscale('log')
-        plt.xlabel('Frequency [rad/s]')
-        plt.ylabel("Storage Modulus E' [MPa]")
-        plt.title("Storage Modulus vs Frequency")
+        plt.grid(True, which='both', linestyle='--', linewidth=0.5, alpha=0.7)
+        plt.xlabel(r"$f\ \mathrm{[rad/s]}$")
+        plt.ylabel(r"Storage Modulus $\mathrm{[Pa]}$")
+#        plt.title("Storage Modulus vs Frequency")
         plt.legend()
 
         # 2) Loss
         plt.subplot(1, 2, 2)
-        plt.plot(df_filtered['f'], df_filtered['Loss'], 'b.-', label="Experimental E''")
-        plt.plot(df_filtered['f'], fitted_loss, 'r--', label=f"Fitted E'' (R²={r2_loss:.3f})")
+        plt.plot(df_filtered['f'], df_filtered['Loss'], 'b.-', label="Generated Master Curve")
+        plt.plot(df_filtered['f'], fitted_loss, 'r--', label=f"Fitted Prony Series (R²={r2_loss:.3f})")
         plt.xscale('log')
         plt.yscale('log')
-        plt.xlabel('Frequency [rad/s]')
-        plt.ylabel("Loss Modulus E'' [MPa]")
-        plt.title("Loss Modulus vs Frequency")
+        plt.grid(True, which='both', linestyle='--', linewidth=0.5, alpha=0.7)
+        plt.xlabel(r"$f\ \mathrm{[rad/s]}$")
+        plt.ylabel(r"Loss Modulus $\mathrm{[Pa]}$")
+#        plt.title("Loss Modulus vs Frequency")
         plt.legend()
 
         plt.tight_layout()
